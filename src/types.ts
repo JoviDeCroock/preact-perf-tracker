@@ -1,8 +1,5 @@
 import type { VNode, Component, Options as PreactOptions } from 'preact';
 
-// These reflect the mangled property names Preact uses at runtime (10.x).
-// We declare them here so the rest of the codebase can access internals safely.
-
 export interface InternalVNode<P = Record<string, unknown>> extends VNode<P> {
 	/** Component instance (`_component`) */
 	__c: InternalComponent | null;
@@ -53,7 +50,6 @@ export interface HookState {
 	__H?: unknown[];
 }
 
-/** Extended Options including Preact-internal hooks */
 export interface InternalOptions extends PreactOptions {
 	__b?(vnode: InternalVNode): void;
 	__r?(vnode: InternalVNode): void;
@@ -118,17 +114,11 @@ export interface Change {
 }
 
 export interface RenderInfo {
-	/** Component display name */
 	componentName: string;
-	/** Mount, update, or unmount */
 	phase: 'mount' | 'update' | 'unmount';
-	/** Wall-clock self-render time (ms) */
 	selfTime: number;
-	/** What triggered this render */
 	changes: Change[];
-	/** High-resolution timestamp */
 	timestamp: number;
-	/** Nearest DOM node in the subtree */
 	domNode: Element | null;
 }
 
@@ -147,18 +137,11 @@ export interface ReportSummaryEntry {
 }
 
 export interface OutlineData {
-	/** Target element bounding rect */
 	rect: DOMRect;
-	/** Current opacity (0..1) */
 	alpha: number;
-	/** Outline colour */
 	color: string;
-	/** Cumulative render count */
 	count: number;
-	/** Component display name */
 	name: string;
-	/** Last observed self render time for this element */
 	selfTimeMs: number;
-	/** Time outline was created / refreshed */
 	timestamp: number;
 }
