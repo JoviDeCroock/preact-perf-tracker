@@ -49,6 +49,30 @@ export function isComponentVNode(vnode: InternalVNode): boolean {
 	return typeof vnode.type === 'function';
 }
 
+export function isFragmentLikeVNode(vnode: InternalVNode): boolean {
+	const type = vnode.type as unknown;
+	if (typeof type !== 'function') return false;
+
+	const maybeComponentType = type as {
+		name?: string;
+		displayName?: string;
+	};
+	const name = maybeComponentType.displayName || maybeComponentType.name || '';
+
+	if (name === 'Fragment') return true;
+
+	// In linked-package/dev setups, Fragment can come from another Preact copy
+	// and appear as a minified one-letter function (e.g. "k").
+	if (/^[a-z]$/.test(name)) {
+		const props = vnode.props as Record<string, unknown> | null | undefined;
+		if (!props) return false;
+		const keys = Object.keys(props);
+		return keys.length === 1 && keys[0] === 'children';
+	}
+
+	return false;
+}
+
 export function snapshot(
 	obj: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> | null {

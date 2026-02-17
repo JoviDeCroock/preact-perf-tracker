@@ -161,6 +161,45 @@ describe('render tracking', () => {
 		expect(names).toContain('Child');
 	});
 
+	it('emits mount events in parent-to-child order within a commit', async () => {
+		const renders: RenderInfo[] = [];
+		setActiveOptions({ onRender: (info) => renders.push(info) });
+		hookIntoPreact();
+
+		function Child() {
+			return createElement('em', null, 'child');
+		}
+		function Parent() {
+			return createElement('div', null, createElement(Child, null));
+		}
+		await act(() => render(createElement(Parent, null), scratch));
+
+		const names = renders.map((r) => r.componentName);
+		expect(names).toEqual(['Parent', 'Child']);
+	});
+
+	it('skips fragment-like wrapper components', async () => {
+		const renders: RenderInfo[] = [];
+		setActiveOptions({ onRender: (info) => renders.push(info) });
+		hookIntoPreact();
+
+		function Child() {
+			return createElement('em', null, 'child');
+		}
+		const Wrapper = Object.assign(
+			(props: { children?: any }) => props.children,
+			{ displayName: 'k' },
+		);
+
+		function Parent() {
+			return createElement('div', null, createElement(Wrapper, null, createElement(Child, null)));
+		}
+		await act(() => render(createElement(Parent, null), scratch));
+
+		const names = renders.map((r) => r.componentName);
+		expect(names).toEqual(['Parent', 'Child']);
+	});
+
 	it('reports "update" phase on re-render', async () => {
 		const renders: RenderInfo[] = [];
 		setActiveOptions({ onRender: (info) => renders.push(info) });

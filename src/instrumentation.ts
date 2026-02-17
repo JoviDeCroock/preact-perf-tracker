@@ -15,6 +15,7 @@ import {
 	getComponentDOMNode,
 	shallowDiff,
 	isComponentVNode,
+	isFragmentLikeVNode,
 	snapshot,
 	now,
 } from './utils';
@@ -54,6 +55,7 @@ let legacyOverlayRenderListener: ((info: RenderInfo) => void) | null = null;
 
 let isHooked = false;
 let inCommit = false;
+let commitRenderQueue: RenderInfo[] = [];
 
 
 function detectChanges(
@@ -116,6 +118,7 @@ function onBeforeDiff(vnode: InternalVNode) {
 
 	if (!inCommit) {
 		inCommit = true;
+		commitRenderQueue = [];
 		activeOptions.onCommitStart?.();
 	}
 }
@@ -123,7 +126,7 @@ function onBeforeDiff(vnode: InternalVNode) {
 function onBeforeRender(vnode: InternalVNode) {
 	if (!activeOptions.enabled) return;
 	if (!isComponentVNode(vnode)) return;
-	if (vnode.type === Fragment) return;
+	if (vnode.type === Fragment || isFragmentLikeVNode(vnode)) return;
 
 	const component = vnode.__c as InternalComponent | null;
 	if (!component) return;
@@ -134,7 +137,7 @@ function onBeforeRender(vnode: InternalVNode) {
 function onDiffed(vnode: InternalVNode) {
 	if (!activeOptions.enabled) return;
 	if (!isComponentVNode(vnode)) return;
-	if (vnode.type === Fragment) return;
+	if (vnode.type === Fragment || isFragmentLikeVNode(vnode)) return;
 
 	const component = vnode.__c as InternalComponent | null;
 	if (!component) return;
@@ -178,18 +181,22 @@ function onDiffed(vnode: InternalVNode) {
 	entry.count++;
 	entry.totalSelfTime += selfTime;
 
-	if (activeOptions.log) {
-		logRender(info);
-	}
-
-	activeOptions.onRender?.(info);
-	emitRender(info);
+	commitRenderQueue.push(info);
 }
 
 function onCommit(_vnode: InternalVNode, _commitQueue: InternalComponent[]) {
 	if (!activeOptions.enabled) return;
 
 	if (inCommit) {
+		for (let i = commitRenderQueue.length - 1; i >= 0; i--) {
+			const info = commitRenderQueue[i];
+			if (activeOptions.log) {
+				logRender(info);
+			}
+			activeOptions.onRender?.(info);
+			emitRender(info);
+		}
+		commitRenderQueue = [];
 		inCommit = false;
 		activeOptions.onCommitFinish?.();
 	}
@@ -198,7 +205,7 @@ function onCommit(_vnode: InternalVNode, _commitQueue: InternalComponent[]) {
 function onUnmount(vnode: InternalVNode) {
 	if (!activeOptions.enabled) return;
 	if (!isComponentVNode(vnode)) return;
-	if (vnode.type === Fragment) return;
+	if (vnode.type === Fragment || isFragmentLikeVNode(vnode)) return;
 
 	const componentName = getDisplayName(vnode) || 'Anonymous';
 	const domNode = getComponentDOMNode(vnode);
@@ -400,6 +407,8 @@ export function isInstrumented() {
 export function __resetHooks() {
 	isHooked = false;
 	hooksInstalled = false;
+	commitRenderQueue = [];
+	inCommit = false;
 	if (savedOriginalHooks) {
 		const opts = options as InternalOptions;
 		opts.__b = savedOriginalHooks.__b;
