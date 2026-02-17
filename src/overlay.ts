@@ -40,7 +40,7 @@ function ensureCanvas(): CanvasRenderingContext2D {
 	if (canvas && ctx) return ctx;
 
 	canvas = document.createElement('canvas');
-	canvas.id = 'preact-scan-overlay';
+	canvas.id = 'preact-perf-tracker-overlay';
 	Object.assign(canvas.style, {
 		position: 'fixed',
 		top: '0',

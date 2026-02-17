@@ -45,7 +45,7 @@ afterEach(() => {
 });
 
 
-describe('scan()', () => {
+describe('install()', () => {
 	it('starts tracking and creates the toolbar', async () => {
 		install({ showToolbar: true });
 		await act(() => {});
@@ -62,7 +62,7 @@ describe('scan()', () => {
 		expect(toolbar).toBeNull();
 	});
 
-	it('tracks renders after calling scan()', async () => {
+	it('tracks renders after calling install()', async () => {
 		const renders: RenderInfo[] = [];
 		install({
 			showToolbar: false,
@@ -216,7 +216,7 @@ describe('overlay', () => {
 		}
 		await act(() => render(createElement(Vis, null), scratch));
 
-		const canvas = document.getElementById('preact-scan-overlay');
+		const canvas = document.getElementById('preact-perf-tracker-overlay');
 		expect(canvas).not.toBeNull();
 		expect(canvas!.tagName).toBe('CANVAS');
 	});
@@ -230,7 +230,7 @@ describe('overlay', () => {
 		await act(() => render(createElement(Vis2, null), scratch));
 
 		stop();
-		const canvas = document.getElementById('preact-scan-overlay');
+		const canvas = document.getElementById('preact-perf-tracker-overlay');
 		expect(canvas).toBeNull();
 	});
 });

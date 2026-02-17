@@ -177,7 +177,7 @@ function createToolbarDOM(): ShadowRoot {
 
 	shadowRoot.appendChild(toolbar);
 	const legacyMarker = document.createElement('span');
-	legacyMarker.id = 'preact-scan-toolbar';
+	legacyMarker.id = 'preact-perf-tracker-toolbar';
 	legacyMarker.style.display = 'none';
 	shadowRoot.appendChild(legacyMarker);
 	document.documentElement.appendChild(rootContainer);
