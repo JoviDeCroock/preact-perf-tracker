@@ -5,8 +5,11 @@ import {
 	setActiveOptions,
 	getActiveOptions,
 	getReport as getReportInternal,
+	getReportSummary as getReportSummaryInternal,
 	clearReport as clearReportInternal,
-	setOverlayRenderListener,
+	resetActiveOptions,
+	addRenderListener,
+	removeRenderListener,
 } from './instrumentation';
 import { startOverlay, stopOverlay } from './overlay';
 import { createToolbar, destroyToolbar, notifyToolbarRender } from './toolbar';
@@ -14,6 +17,9 @@ import { createToolbar, destroyToolbar, notifyToolbarRender } from './toolbar';
 // ─── State ──────────────────────────────────────────────────────────────────
 
 let started = false;
+const toolbarRenderListener = (_info: RenderInfo) => {
+	notifyToolbarRender();
+};
 
 // ─── Public API ─────────────────────────────────────────────────────────────
 
@@ -31,6 +37,7 @@ let started = false;
  * ```
  */
 export function install(options: Options = {}): void {
+	resetActiveOptions();
 	setOptions(options);
 
 	const opts = getActiveOptions();
@@ -66,6 +73,13 @@ export function getReport(
 }
 
 /**
+ * Get the top report entries sorted by total self-time.
+ */
+export function getReportSummary(limit = 10) {
+	return getReportSummaryInternal(limit);
+}
+
+/**
  * Clear all accumulated report data.
  */
 export function clearReport(): void {
@@ -78,6 +92,7 @@ export function clearReport(): void {
 export function stop(): void {
 	if (!started) return;
 	started = false;
+	removeRenderListener(toolbarRenderListener);
 	unhookFromPreact();
 	stopOverlay();
 	destroyToolbar();
@@ -92,11 +107,8 @@ function start() {
 	// Install options hooks
 	hookIntoPreact();
 
-	// Wire overlay render listener → toolbar render counter
-	setOverlayRenderListener((_info: RenderInfo) => {
-		// Feed to overlay (already set by startOverlay, we add toolbar notification)
-		notifyToolbarRender();
-	});
+	// Wire render listener -> toolbar render counter
+	addRenderListener(toolbarRenderListener);
 
 	// Start overlay drawing
 	startOverlay();
@@ -118,4 +130,11 @@ function start() {
 
 // ─── Re-exports ─────────────────────────────────────────────────────────────
 
-export type { Options, RenderInfo, ReportEntry, Change, ChangeType } from './types';
+export type {
+	Options,
+	RenderInfo,
+	ReportEntry,
+	ReportSummaryEntry,
+	Change,
+	ChangeType,
+} from './types';

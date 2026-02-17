@@ -8,9 +8,10 @@ export function getDisplayName(vnode: InternalVNode): string | null {
 	const type = vnode.type;
 	if (typeof type === 'string') return null; // host element
 	if (typeof type === 'function') {
-		return (
-			(type as any).displayName || type.name || null
-		);
+		const name = (type as any).displayName || type.name || null;
+		// Some runtimes infer generic names like "type" for anonymous functions.
+		if (name === 'type' || name === 'anonymous') return null;
+		return name;
 	}
 	return null;
 }

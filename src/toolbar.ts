@@ -1,4 +1,9 @@
-import { getActiveOptions, setActiveOptions } from './instrumentation';
+import {
+	getActiveOptions,
+	setActiveOptions,
+	clearReport,
+	getReportSummary,
+} from './instrumentation';
 
 // ─── Toolbar State ──────────────────────────────────────────────────────────
 
@@ -6,13 +11,13 @@ let rootContainer: HTMLDivElement | null = null;
 let shadowRoot: ShadowRoot | null = null;
 let renderCount = 0;
 let fps = 0;
+let rendersPerSecond = 0;
 let frameCount = 0;
 let lastFpsTime = performance.now();
 let fpsRafId: number | null = null;
 
 // Track renders for FPS-like render count
 let rendersThisSecond = 0;
-let lastRenderCountTime = performance.now();
 
 // ─── FPS Meter ──────────────────────────────────────────────────────────────
 
@@ -21,6 +26,8 @@ function updateFps() {
 	const now = performance.now();
 	if (now - lastFpsTime >= 1000) {
 		fps = frameCount;
+		rendersPerSecond = rendersThisSecond;
+		rendersThisSecond = 0;
 		frameCount = 0;
 		lastFpsTime = now;
 		updateDisplay();
@@ -33,11 +40,6 @@ function updateFps() {
 export function notifyToolbarRender() {
 	renderCount++;
 	rendersThisSecond++;
-	const now = performance.now();
-	if (now - lastRenderCountTime >= 1000) {
-		rendersThisSecond = 0;
-		lastRenderCountTime = now;
-	}
 	updateDisplay();
 }
 
@@ -137,9 +139,15 @@ function createToolbarDOM(): ShadowRoot {
 		<span class="separator"></span>
 		<span class="stat">renders: <span class="stat-value" data-renders>0</span></span>
 		<span class="separator"></span>
+		<span class="stat">r/s: <span class="stat-value" data-rps>0</span></span>
+		<span class="separator"></span>
 		<span class="stat">fps: <span class="stat-value" data-fps>--</span></span>
 		<span class="separator"></span>
+		<span class="stat">hot: <span class="stat-value" data-hot>--</span></span>
+		<span class="separator"></span>
 		<button class="toggle-btn active" data-toggle>Enabled</button>
+		<button class="toggle-btn" data-reset>Reset</button>
+		<button class="toggle-btn" data-copy>Copy</button>
 	`;
 
 	const toggleBtn = toolbar.querySelector('[data-toggle]') as HTMLButtonElement;
@@ -151,7 +159,33 @@ function createToolbarDOM(): ShadowRoot {
 		toggleBtn.classList.toggle('active', next);
 	});
 
+	const resetBtn = toolbar.querySelector('[data-reset]') as HTMLButtonElement;
+	resetBtn.addEventListener('click', () => {
+		clearReport();
+		renderCount = 0;
+		rendersThisSecond = 0;
+		rendersPerSecond = 0;
+		updateDisplay();
+	});
+
+	const copyBtn = toolbar.querySelector('[data-copy]') as HTMLButtonElement;
+	copyBtn.addEventListener('click', async () => {
+		const summary = getReportSummary(25);
+		const payload = JSON.stringify(summary, null, 2);
+		if (!navigator.clipboard?.writeText) return;
+		await navigator.clipboard.writeText(payload);
+		const old = copyBtn.textContent;
+		copyBtn.textContent = 'Copied';
+		window.setTimeout(() => {
+			copyBtn.textContent = old;
+		}, 1200);
+	});
+
 	shadowRoot.appendChild(toolbar);
+	const legacyMarker = document.createElement('span');
+	legacyMarker.id = 'preact-scan-toolbar';
+	legacyMarker.style.display = 'none';
+	shadowRoot.appendChild(legacyMarker);
 	document.documentElement.appendChild(rootContainer);
 
 	return shadowRoot;
@@ -161,10 +195,19 @@ function updateDisplay() {
 	if (!shadowRoot) return;
 
 	const rendersEl = shadowRoot.querySelector('[data-renders]');
+	const rpsEl = shadowRoot.querySelector('[data-rps]');
 	const fpsEl = shadowRoot.querySelector('[data-fps]');
+	const hotEl = shadowRoot.querySelector('[data-hot]');
+
+	const hottest = getReportSummary(1)[0];
+	const hotLabel = hottest
+		? `${hottest.displayName} (${hottest.totalSelfTime.toFixed(1)}ms)`
+		: '--';
 
 	if (rendersEl) rendersEl.textContent = String(renderCount);
+	if (rpsEl) rpsEl.textContent = String(rendersPerSecond);
 	if (fpsEl) fpsEl.textContent = String(fps);
+	if (hotEl) hotEl.textContent = hotLabel;
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────────
@@ -187,4 +230,9 @@ export function destroyToolbar() {
 		shadowRoot = null;
 	}
 	renderCount = 0;
+	rendersThisSecond = 0;
+	rendersPerSecond = 0;
+	fps = 0;
+	frameCount = 0;
+	lastFpsTime = performance.now();
 }

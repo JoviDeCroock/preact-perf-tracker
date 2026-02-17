@@ -51,7 +51,12 @@ describe('getDisplayName', () => {
 	});
 
 	it('returns null for an anonymous arrow function', () => {
-		const vnode = makeVNode({ type: (() => {}) as any });
+		// Create arrow fn as a separate variable to avoid JS engines
+		// inferring the name from the object property key
+		const anonFn = (() => {
+			return () => {};
+		})();
+		const vnode = makeVNode({ type: anonFn as any });
 		// Arrow functions have name="" in most engines
 		expect(getDisplayName(vnode)).toBe(null);
 	});

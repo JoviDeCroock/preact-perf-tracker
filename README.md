@@ -6,7 +6,7 @@
 Track component renders in Preact with:
 - render-change detection (props/state/force updates)
 - a visual DOM overlay
-- a floating toolbar with render and FPS counters
+- a floating toolbar with render/FPS stats, pause toggle, reset, and report copy
 - a runtime report API
 
 ## Install
@@ -44,6 +44,9 @@ Returns the active options object.
 ### `getReport(type?: unknown): ReportEntry | Map<unknown, ReportEntry> | null`
 Returns aggregated render data for all tracked component types or one specific type.
 
+### `getReportSummary(limit = 10): ReportSummaryEntry[]`
+Returns top entries sorted by total self-time, including derived `avgSelfTime`.
+
 ### `clearReport(): void`
 Resets collected report data.
 
@@ -72,6 +75,12 @@ type Options = {
 - `timestamp`
 - `domNode`
 
+`ReportSummaryEntry` includes:
+- `displayName`
+- `count`
+- `totalSelfTime`
+- `avgSelfTime`
+
 ## Example
 
 A runnable demo is in `example/`.
@@ -86,6 +95,7 @@ pnpm dev
 
 - This package hooks into Preact `options` internals.
 - Built for Preact 10.x.
+- `install()` resets runtime options to defaults before applying provided options.
 - Browser/runtime tooling only (not intended for SSR execution).
 
 ## License

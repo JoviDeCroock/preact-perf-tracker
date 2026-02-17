@@ -1,4 +1,4 @@
-import { options } from 'preact';
+import { options, Fragment } from 'preact';
 import {
 	ChangeType,
 	type InternalVNode,
@@ -8,6 +8,7 @@ import {
 	type Change,
 	type Options,
 	type ReportEntry,
+	type ReportSummaryEntry,
 } from './types';
 import {
 	getDisplayName,
@@ -22,6 +23,12 @@ import {
 
 /** Render timing: start time keyed by component instance */
 const renderStartTimes = new WeakMap<InternalComponent, number>();
+const defaultOptions: Options = {
+	enabled: true,
+	log: false,
+	showToolbar: true,
+	animationSpeed: 'fast',
+};
 
 /** Saved previous-hook options so we can restore on unhook */
 let prevOptions: {
@@ -34,20 +41,15 @@ let prevOptions: {
 
 /** Currently active options (mutable, shared) */
 let activeOptions: Options = {
-	enabled: true,
-	log: false,
-	showToolbar: true,
-	animationSpeed: 'fast',
+	...defaultOptions,
 };
 
 /** Per-type report data */
 const reportData = new Map<unknown, ReportEntry>();
 
-/** Render batch collected between __c (commit) boundaries */
-let currentBatch: RenderInfo[] = [];
-
 /** External listeners */
-let onOverlayRender: ((info: RenderInfo) => void) | null = null;
+const renderListeners = new Set<(info: RenderInfo) => void>();
+let legacyOverlayRenderListener: ((info: RenderInfo) => void) | null = null;
 
 /** Track whether we're hooked */
 let isHooked = false;
@@ -110,6 +112,12 @@ function detectChanges(
 	return changes;
 }
 
+function emitRender(info: RenderInfo) {
+	for (const listener of renderListeners) {
+		listener(info);
+	}
+}
+
 // ─── Options Hooks ──────────────────────────────────────────────────────────
 
 function onBeforeDiff(vnode: InternalVNode) {
@@ -124,6 +132,7 @@ function onBeforeDiff(vnode: InternalVNode) {
 function onBeforeRender(vnode: InternalVNode) {
 	if (!activeOptions.enabled) return;
 	if (!isComponentVNode(vnode)) return;
+	if (vnode.type === Fragment) return;
 
 	const component = vnode.__c as InternalComponent | null;
 	if (!component) return;
@@ -135,6 +144,7 @@ function onBeforeRender(vnode: InternalVNode) {
 function onDiffed(vnode: InternalVNode) {
 	if (!activeOptions.enabled) return;
 	if (!isComponentVNode(vnode)) return;
+	if (vnode.type === Fragment) return;
 
 	const component = vnode.__c as InternalComponent | null;
 	if (!component) return;
@@ -188,11 +198,9 @@ function onDiffed(vnode: InternalVNode) {
 	// Notify user callback
 	activeOptions.onRender?.(info);
 
-	// Notify overlay
-	onOverlayRender?.(info);
+	// Notify listeners
+	emitRender(info);
 
-	// Batch for commit
-	currentBatch.push(info);
 }
 
 function onCommit(_vnode: InternalVNode, _commitQueue: InternalComponent[]) {
@@ -202,12 +210,12 @@ function onCommit(_vnode: InternalVNode, _commitQueue: InternalComponent[]) {
 		inCommit = false;
 		activeOptions.onCommitFinish?.();
 	}
-	currentBatch = [];
 }
 
 function onUnmount(vnode: InternalVNode) {
 	if (!activeOptions.enabled) return;
 	if (!isComponentVNode(vnode)) return;
+	if (vnode.type === Fragment) return;
 
 	const componentName = getDisplayName(vnode) || 'Anonymous';
 	const domNode = getComponentDOMNode(vnode);
@@ -222,14 +230,14 @@ function onUnmount(vnode: InternalVNode) {
 	};
 
 	activeOptions.onRender?.(info);
-	onOverlayRender?.(info);
+	emitRender(info);
 }
 
 // ─── Console Logging ────────────────────────────────────────────────────────
 
 function logRender(info: RenderInfo) {
 	const parts: string[] = [
-		`%c[Render]%c ${info.componentName}`,
+		`%c[preact-perf-tracker]%c ${info.componentName}`,
 		'color: #8b5cf6; font-weight: bold',
 		'color: inherit',
 	];
@@ -312,6 +320,8 @@ export function hookIntoPreact() {
 /**
  * Remove our hooks and restore previous option hooks.
  */
+// TODO: this is potentially destructive if i.e. hooks/signals
+// are imported after this.
 export function unhookFromPreact() {
 	if (!isHooked || !prevOptions) return;
 	isHooked = false;
@@ -335,6 +345,10 @@ export function setActiveOptions(opts: Partial<Options>) {
 	Object.assign(activeOptions, opts);
 }
 
+export function resetActiveOptions() {
+	activeOptions = { ...defaultOptions };
+}
+
 /**
  * Get render report for all tracked components, or a specific type.
  */
@@ -353,12 +367,50 @@ export function clearReport() {
 
 /**
  * Register a listener that fires for every tracked render.
- * Used by the overlay to know when to draw outlines.
+ */
+export function addRenderListener(fn: (info: RenderInfo) => void) {
+	renderListeners.add(fn);
+}
+
+export function removeRenderListener(fn: (info: RenderInfo) => void) {
+	renderListeners.delete(fn);
+}
+
+/**
+ * Backward-compatible single-listener API used by older integrations/tests.
  */
 export function setOverlayRenderListener(
 	fn: ((info: RenderInfo) => void) | null,
 ) {
-	onOverlayRender = fn;
+	if (legacyOverlayRenderListener) {
+		removeRenderListener(legacyOverlayRenderListener);
+		legacyOverlayRenderListener = null;
+	}
+	if (fn) {
+		legacyOverlayRenderListener = fn;
+		addRenderListener(fn);
+	}
+}
+
+/**
+ * Get a sorted summary for quick insights (highest total self-time first).
+ */
+export function getReportSummary(limit = 10): ReportSummaryEntry[] {
+	const normalizedLimit = Math.max(1, Math.floor(limit));
+	return Array.from(reportData.values())
+		.map((entry) => ({
+			displayName: entry.displayName || 'Anonymous',
+			count: entry.count,
+			totalSelfTime: entry.totalSelfTime,
+			avgSelfTime: entry.count > 0 ? entry.totalSelfTime / entry.count : 0,
+		}))
+		.sort((a, b) => {
+			if (b.totalSelfTime !== a.totalSelfTime) {
+				return b.totalSelfTime - a.totalSelfTime;
+			}
+			return b.count - a.count;
+		})
+		.slice(0, normalizedLimit);
 }
 
 export function isInstrumented() {

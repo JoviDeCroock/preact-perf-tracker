@@ -1,5 +1,9 @@
 import type { RenderInfo, OutlineData } from './types';
-import { setOverlayRenderListener, getActiveOptions } from './instrumentation';
+import {
+	addRenderListener,
+	removeRenderListener,
+	getActiveOptions,
+} from './instrumentation';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -41,7 +45,7 @@ function ensureCanvas(): CanvasRenderingContext2D {
 	if (canvas && ctx) return ctx;
 
 	canvas = document.createElement('canvas');
-	canvas.id = 'preact-tracker-overlay';
+	canvas.id = 'preact-scan-overlay';
 	Object.assign(canvas.style, {
 		position: 'fixed',
 		top: '0',
@@ -119,9 +123,7 @@ function drawOutline(outline: OutlineData) {
 
 	const { rect, alpha, color, count, name } = outline;
 	const resolvedColor = color.replace('ALPHA', String(alpha));
-	const borderWidth = borderWidthForTime(
-		outline.alpha > 0 ? (1 - outline.alpha) * 16 : 0,
-	);
+	const borderWidth = borderWidthForTime(outline.selfTimeMs);
 
 	// Outline rectangle
 	ctx.strokeStyle = resolvedColor;
@@ -139,7 +141,10 @@ function drawOutline(outline: OutlineData) {
 
 	// Label
 	if (alpha > 0.3) {
-		const label = count > 1 ? `${name} ×${count}` : name;
+		const renderTimeLabel =
+			outline.selfTimeMs >= 0.01 ? ` ${outline.selfTimeMs.toFixed(2)}ms` : '';
+		const label =
+			count > 1 ? `${name} ×${count}${renderTimeLabel}` : `${name}${renderTimeLabel}`;
 		const fontSize = 10;
 		ctx.font = `600 ${fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
 
@@ -183,6 +188,7 @@ function onRender(info: RenderInfo) {
 		color: getOutlineColor(count),
 		count,
 		name: info.componentName,
+		selfTimeMs: info.selfTime,
 		timestamp: performance.now(),
 	});
 
@@ -209,11 +215,11 @@ function stopLoop() {
 // ─── Public API ─────────────────────────────────────────────────────────────
 
 export function startOverlay() {
-	setOverlayRenderListener(onRender);
+	addRenderListener(onRender);
 }
 
 export function stopOverlay() {
-	setOverlayRenderListener(null);
+	removeRenderListener(onRender);
 	stopLoop();
 	outlines.clear();
 	if (canvas) {

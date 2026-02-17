@@ -1,21 +1,42 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createElement } from 'preact';
 import { render } from 'preact';
-import { useState } from 'preact/hooks';
-import { install, stop, setOptions, getOptions, getReport, clearReport } from '../index';
+import {
+	install,
+	stop,
+	setOptions,
+	getOptions,
+	getReport,
+	getReportSummary,
+	clearReport,
+} from '../index';
+import { setActiveOptions } from '../instrumentation';
 import type { RenderInfo } from '../types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 let scratch: HTMLDivElement;
 
-function act(fn: () => void) {
+async function act(fn: () => void) {
 	fn();
+	// Flush Preact's microtask-based rerender queue
+	await new Promise(resolve => setTimeout(resolve, 0));
 }
 
 beforeEach(() => {
 	scratch = document.createElement('div');
 	document.body.appendChild(scratch);
+	// Reset options to defaults between tests
+	setActiveOptions({
+		enabled: true,
+		log: false,
+		showToolbar: false,
+		animationSpeed: 'off',
+		onRender: undefined,
+		onCommitStart: undefined,
+		onCommitFinish: undefined,
+	});
+	clearReport();
 });
 
 afterEach(() => {
@@ -27,10 +48,11 @@ afterEach(() => {
 // ─── install() ─────────────────────────────────────────────────────────────────
 
 describe('scan()', () => {
-	it('starts tracking and creates the toolbar', () => {
+	it('starts tracking and creates the toolbar', async () => {
 		install({ showToolbar: true });
+		await act(() => {});
 
-		const toolbar = document.getElementById('preact-scan-toolbar');
+		const toolbar = document.getElementById('preact-tracker-toolbar');
 		expect(toolbar).not.toBeNull();
 	});
 
@@ -38,11 +60,11 @@ describe('scan()', () => {
 		install({ enabled: false, showToolbar: false });
 
 		// Toolbar should not exist
-		const toolbar = document.getElementById('preact-scan-toolbar');
+		const toolbar = document.getElementById('preact-tracker-toolbar');
 		expect(toolbar).toBeNull();
 	});
 
-	it('tracks renders after calling scan()', () => {
+	it('tracks renders after calling scan()', async () => {
 		const renders: RenderInfo[] = [];
 		install({
 			showToolbar: false,
@@ -52,7 +74,7 @@ describe('scan()', () => {
 		function App() {
 			return createElement('div', null, 'hello');
 		}
-		act(() => render(createElement(App, null), scratch));
+		await act(() => render(createElement(App, null), scratch));
 
 		expect(renders.length).toBe(1);
 		expect(renders[0].componentName).toBe('App');
@@ -67,10 +89,10 @@ describe('stop()', () => {
 		expect(document.getElementById('preact-tracker-toolbar')).not.toBeNull();
 
 		stop();
-		expect(document.getElementById('preact-scan-toolbar')).toBeNull();
+		expect(document.getElementById('preact-tracker-toolbar')).toBeNull();
 	});
 
-	it('stops tracking renders after stop()', () => {
+	it('stops tracking renders after stop()', async () => {
 		const renders: RenderInfo[] = [];
 		install({
 			showToolbar: false,
@@ -80,7 +102,7 @@ describe('stop()', () => {
 		function Before() {
 			return createElement('div', null, 'before');
 		}
-		act(() => render(createElement(Before, null), scratch));
+		await act(() => render(createElement(Before, null), scratch));
 		const countBefore = renders.length;
 
 		stop();
@@ -88,7 +110,7 @@ describe('stop()', () => {
 		function After() {
 			return createElement('div', null, 'after');
 		}
-		act(() => render(createElement(After, null), scratch));
+		await act(() => render(createElement(After, null), scratch));
 
 		// No new renders tracked
 		expect(renders.length).toBe(countBefore);
@@ -125,7 +147,7 @@ describe('setOptions() / getOptions()', () => {
 // ─── getReport() / clearReport() ───────────────────────────────────────────
 
 describe('getReport() / clearReport()', () => {
-	it('returns a Map of all tracked components', () => {
+	it('returns a Map of all tracked components', async () => {
 		install({ showToolbar: false });
 
 		function Foo() {
@@ -134,7 +156,7 @@ describe('getReport() / clearReport()', () => {
 		function Bar() {
 			return createElement('span', null, 'bar');
 		}
-		act(() =>
+		await act(() =>
 			render(
 				createElement('div', null, createElement(Foo, null), createElement(Bar, null)),
 				scratch,
@@ -146,56 +168,72 @@ describe('getReport() / clearReport()', () => {
 		expect(report.size).toBeGreaterThanOrEqual(2);
 	});
 
-	it('returns a single entry for a specific type', () => {
+	it('returns a single entry for a specific type', async () => {
 		install({ showToolbar: false });
 
 		function Target() {
 			return createElement('em', null, 'target');
 		}
-		act(() => render(createElement(Target, null), scratch));
+		await act(() => render(createElement(Target, null), scratch));
 
 		const entry = getReport(Target) as any;
 		expect(entry).not.toBeNull();
 		expect(entry.displayName).toBe('Target');
 	});
 
-	it('clears all data with clearReport()', () => {
+	it('clears all data with clearReport()', async () => {
 		install({ showToolbar: false });
 
 		function X() {
 			return createElement('span', null);
 		}
-		act(() => render(createElement(X, null), scratch));
+		await act(() => render(createElement(X, null), scratch));
 
 		clearReport();
 		const report = getReport() as Map<unknown, any>;
 		expect(report.size).toBe(0);
+	});
+
+	it('returns a summary list with a limit', async () => {
+		install({ showToolbar: false });
+
+		function SummaryTarget() {
+			return createElement('span', null, 'summary');
+		}
+		await act(() => render(createElement(SummaryTarget, null), scratch));
+		await act(() => render(createElement(SummaryTarget, null), scratch));
+
+		const summary = getReportSummary(1);
+		expect(summary.length).toBe(1);
+		expect(summary[0].displayName).toBe('SummaryTarget');
+		expect(summary[0].count).toBeGreaterThanOrEqual(2);
+		expect(summary[0].avgSelfTime).toBeGreaterThanOrEqual(0);
 	});
 });
 
 // ─── Overlay canvas ─────────────────────────────────────────────────────────
 
 describe('overlay', () => {
-	it('creates the overlay canvas element', () => {
+	it('creates the overlay canvas element', async () => {
 		install({ showToolbar: false });
 
 		function Vis() {
 			return createElement('div', null, 'visible');
 		}
-		act(() => render(createElement(Vis, null), scratch));
+		await act(() => render(createElement(Vis, null), scratch));
 
 		const canvas = document.getElementById('preact-scan-overlay');
 		expect(canvas).not.toBeNull();
 		expect(canvas!.tagName).toBe('CANVAS');
 	});
 
-	it('removes the canvas on stop()', () => {
+	it('removes the canvas on stop()', async () => {
 		install({ showToolbar: false });
 
 		function Vis2() {
 			return createElement('div', null, 'visible');
 		}
-		act(() => render(createElement(Vis2, null), scratch));
+		await act(() => render(createElement(Vis2, null), scratch));
 
 		stop();
 		const canvas = document.getElementById('preact-scan-overlay');
@@ -206,7 +244,7 @@ describe('overlay', () => {
 // ─── Integration: full render cycle ─────────────────────────────────────────
 
 describe('integration: full render cycle', () => {
-	it('tracks mount → update → unmount lifecycle', () => {
+	it('tracks mount → update → unmount lifecycle', async () => {
 		const phases: string[] = [];
 		install({
 			showToolbar: false,
@@ -217,23 +255,20 @@ describe('integration: full render cycle', () => {
 			},
 		});
 
-		let setVal: (v: number) => void;
-		function Lifecycle() {
-			const [val, sv] = useState(0);
-			setVal = sv;
-			return createElement('div', null, String(val));
+		function Lifecycle(props: { value: number }) {
+			return createElement('div', null, String(props.value));
 		}
 
 		// Mount
-		act(() => render(createElement(Lifecycle, null), scratch));
+		await act(() => render(createElement(Lifecycle, { value: 0 }), scratch));
 		expect(phases).toContain('mount');
 
 		// Update
-		act(() => setVal!(1));
+		await act(() => render(createElement(Lifecycle, { value: 1 }), scratch));
 		expect(phases).toContain('update');
 
 		// Unmount
-		act(() => render(null, scratch));
+		await act(() => render(null, scratch));
 		expect(phases).toContain('unmount');
 
 		expect(phases).toEqual(['mount', 'update', 'unmount']);

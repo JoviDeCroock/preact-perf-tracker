@@ -36,6 +36,8 @@ export interface InternalComponent extends Component<any, any> {
 	__prevProps?: Record<string, unknown>;
 	/** Previous state snapshot (set by us for change detection) */
 	__prevState?: Record<string, unknown>;
+	/** Previous hooks snapshot (set by us for hook-state change detection) */
+	__prevHooks?: unknown[];
 }
 
 export interface HooksState {
@@ -139,6 +141,13 @@ export interface ReportEntry {
 	type: unknown;
 }
 
+export interface ReportSummaryEntry {
+	displayName: string;
+	count: number;
+	totalSelfTime: number;
+	avgSelfTime: number;
+}
+
 export interface OutlineData {
 	/** Target element bounding rect */
 	rect: DOMRect;
@@ -150,6 +159,8 @@ export interface OutlineData {
 	count: number;
 	/** Component display name */
 	name: string;
+	/** Last observed self render time for this element */
+	selfTimeMs: number;
 	/** Time outline was created / refreshed */
 	timestamp: number;
 }
