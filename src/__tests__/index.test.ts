@@ -13,7 +13,6 @@ import {
 import { setActiveOptions } from '../instrumentation';
 import type { RenderInfo } from '../types';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
 
 let scratch: HTMLDivElement;
 
@@ -45,7 +44,6 @@ afterEach(() => {
 	scratch.remove();
 });
 
-// ─── install() ─────────────────────────────────────────────────────────────────
 
 describe('scan()', () => {
 	it('starts tracking and creates the toolbar', async () => {
@@ -81,7 +79,6 @@ describe('scan()', () => {
 	});
 });
 
-// ─── stop() ─────────────────────────────────────────────────────────────────
 
 describe('stop()', () => {
 	it('removes the toolbar from the DOM', () => {
@@ -126,7 +123,6 @@ describe('stop()', () => {
 	});
 });
 
-// ─── setOptions() / getOptions() ────────────────────────────────────────────
 
 describe('setOptions() / getOptions()', () => {
 	it('updates options at runtime', () => {
@@ -144,7 +140,6 @@ describe('setOptions() / getOptions()', () => {
 	});
 });
 
-// ─── getReport() / clearReport() ───────────────────────────────────────────
 
 describe('getReport() / clearReport()', () => {
 	it('returns a Map of all tracked components', async () => {
@@ -211,7 +206,6 @@ describe('getReport() / clearReport()', () => {
 	});
 });
 
-// ─── Overlay canvas ─────────────────────────────────────────────────────────
 
 describe('overlay', () => {
 	it('creates the overlay canvas element', async () => {
@@ -241,7 +235,6 @@ describe('overlay', () => {
 	});
 });
 
-// ─── Integration: full render cycle ─────────────────────────────────────────
 
 describe('integration: full render cycle', () => {
 	it('tracks mount → update → unmount lifecycle', async () => {

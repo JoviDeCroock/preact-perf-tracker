@@ -14,14 +14,12 @@ import {
 import { startOverlay, stopOverlay } from './overlay';
 import { createToolbar, destroyToolbar, notifyToolbarRender } from './toolbar';
 
-// ─── State ──────────────────────────────────────────────────────────────────
 
 let started = false;
 const toolbarRenderListener = (_info: RenderInfo) => {
 	notifyToolbarRender();
 };
 
-// ─── Public API ─────────────────────────────────────────────────────────────
 
 /**
  * Start tracking component renders.
@@ -98,22 +96,15 @@ export function stop(): void {
 	destroyToolbar();
 }
 
-// ─── Internal ───────────────────────────────────────────────────────────────
 
 function start() {
 	if (started) return;
 	started = true;
 
-	// Install options hooks
 	hookIntoPreact();
-
-	// Wire render listener -> toolbar render counter
 	addRenderListener(toolbarRenderListener);
-
-	// Start overlay drawing
 	startOverlay();
 
-	// Show toolbar if requested
 	const opts = getActiveOptions();
 	if (opts.showToolbar !== false) {
 		if (typeof document !== 'undefined') {
@@ -128,7 +119,6 @@ function start() {
 	}
 }
 
-// ─── Re-exports ─────────────────────────────────────────────────────────────
 
 export type {
 	Options,

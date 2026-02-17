@@ -19,9 +19,6 @@ import {
 	now,
 } from './utils';
 
-// ─── Internal State ─────────────────────────────────────────────────────────
-
-/** Render timing: start time keyed by component instance */
 const renderStartTimes = new WeakMap<InternalComponent, number>();
 const defaultOptions: Options = {
 	enabled: true,
@@ -38,7 +35,6 @@ const defaultOptions: Options = {
  */
 let hooksInstalled = false;
 
-/** Hooks captured before we first installed wrappers (for test resets). */
 let savedOriginalHooks: {
 	__b?: InternalOptions['__b'];
 	__r?: InternalOptions['__r'];
@@ -47,27 +43,18 @@ let savedOriginalHooks: {
 	unmount?: InternalOptions['unmount'];
 } | null = null;
 
-/** Currently active options (mutable, shared) */
 let activeOptions: Options = {
 	...defaultOptions,
 };
 
-/** Per-type report data */
 const reportData = new Map<unknown, ReportEntry>();
 
-/** External listeners */
 const renderListeners = new Set<(info: RenderInfo) => void>();
 let legacyOverlayRenderListener: ((info: RenderInfo) => void) | null = null;
 
-/** Track whether we're hooked */
 let isHooked = false;
-
-// ─── Commit-boundary tracking ───────────────────────────────────────────────
-
-/** Whether we are currently inside a diff cycle (between __b of root and __c) */
 let inCommit = false;
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function detectChanges(
 	component: InternalComponent,
@@ -76,9 +63,8 @@ function detectChanges(
 ): Change[] {
 	const changes: Change[] = [];
 
-	if (isMounting) return changes; // nothing to compare on first mount
+	if (isMounting) return changes;
 
-	// --- Props changes ---
 	const prevProps = component.__prevProps;
 	const nextProps = vnode.props as Record<string, unknown>;
 	const changedPropKeys = shallowDiff(prevProps, nextProps);
@@ -91,7 +77,6 @@ function detectChanges(
 		});
 	}
 
-	// --- State changes ---
 	const prevState = component.__prevState;
 	const nextState = component.__s ?? component.state;
 	if (prevState && nextState) {
@@ -109,7 +94,6 @@ function detectChanges(
 		}
 	}
 
-	// Force update detection
 	if (component.__f) {
 		changes.push({
 			type: ChangeType.Force,
@@ -126,7 +110,6 @@ function emitRender(info: RenderInfo) {
 	}
 }
 
-// ─── Options Hooks ──────────────────────────────────────────────────────────
 
 function onBeforeDiff(vnode: InternalVNode) {
 	if (!activeOptions.enabled) return;
@@ -145,7 +128,6 @@ function onBeforeRender(vnode: InternalVNode) {
 	const component = vnode.__c as InternalComponent | null;
 	if (!component) return;
 
-	// Start timing
 	renderStartTimes.set(component, now());
 }
 
@@ -175,7 +157,6 @@ function onDiffed(vnode: InternalVNode) {
 		domNode,
 	};
 
-	// Store snapshot for next diff comparison
 	component.__prevProps = snapshot(
 		vnode.props as Record<string, unknown>,
 	) as Record<string, unknown>;
@@ -183,7 +164,6 @@ function onDiffed(vnode: InternalVNode) {
 		(component.__s ?? component.state) as Record<string, unknown>,
 	) as Record<string, unknown>;
 
-	// Update report data
 	const type = vnode.type;
 	let entry = reportData.get(type);
 	if (!entry) {
@@ -198,17 +178,12 @@ function onDiffed(vnode: InternalVNode) {
 	entry.count++;
 	entry.totalSelfTime += selfTime;
 
-	// Console logging
 	if (activeOptions.log) {
 		logRender(info);
 	}
 
-	// Notify user callback
 	activeOptions.onRender?.(info);
-
-	// Notify listeners
 	emitRender(info);
-
 }
 
 function onCommit(_vnode: InternalVNode, _commitQueue: InternalComponent[]) {
@@ -241,7 +216,6 @@ function onUnmount(vnode: InternalVNode) {
 	emitRender(info);
 }
 
-// ─── Console Logging ────────────────────────────────────────────────────────
 
 function logRender(info: RenderInfo) {
 	const parts: string[] = [
@@ -269,7 +243,6 @@ function logRender(info: RenderInfo) {
 	console.log(...parts);
 }
 
-// ─── Public Instrumentation API ─────────────────────────────────────────────
 
 /**
  * Install the Preact options hooks for render tracking.
@@ -285,13 +258,11 @@ export function hookIntoPreact() {
 	if (isHooked) return;
 	isHooked = true;
 
-	// Only install the permanent wrappers once.
 	if (hooksInstalled) return;
 	hooksInstalled = true;
 
 	const opts = options as InternalOptions;
 
-	// Remember the pristine hooks so __resetHooks can fully tear down.
 	savedOriginalHooks = {
 		__b: opts.__b,
 		__r: opts.__r,
@@ -300,35 +271,30 @@ export function hookIntoPreact() {
 		unmount: opts.unmount,
 	};
 
-	// Chain: before-diff
 	const prev__b = opts.__b;
 	opts.__b = (vnode: InternalVNode) => {
 		if (isHooked) onBeforeDiff(vnode);
 		prev__b?.(vnode);
 	};
 
-	// Chain: before-render
 	const prev__r = opts.__r;
 	opts.__r = (vnode: InternalVNode) => {
 		if (isHooked) onBeforeRender(vnode);
 		prev__r?.(vnode);
 	};
 
-	// Chain: diffed
 	const prevDiffed = opts.diffed;
 	opts.diffed = (vnode) => {
 		if (isHooked) onDiffed(vnode as InternalVNode);
 		prevDiffed?.(vnode);
 	};
 
-	// Chain: commit
 	const prev__c = opts.__c;
 	opts.__c = (vnode: InternalVNode, queue: InternalComponent[]) => {
 		if (isHooked) onCommit(vnode, queue);
 		(prev__c as any)?.(vnode, queue);
 	};
 
-	// Chain: unmount
 	const prevUnmount = opts.unmount;
 	opts.unmount = (vnode) => {
 		if (isHooked) onUnmount(vnode as InternalVNode);
@@ -345,7 +311,6 @@ export function unhookFromPreact() {
 	isHooked = false;
 }
 
-// ─── Options & Report Access ────────────────────────────────────────────────
 
 export function getActiveOptions(): Readonly<Options> {
 	return activeOptions;

@@ -1,6 +1,5 @@
 import type { VNode, Component, Options as PreactOptions } from 'preact';
 
-// ─── Preact Internal Types ──────────────────────────────────────────────────
 // These reflect the mangled property names Preact uses at runtime (10.x).
 // We declare them here so the rest of the codebase can access internals safely.
 
@@ -62,7 +61,6 @@ export interface InternalOptions extends PreactOptions {
 	__h?(component: InternalComponent, index: number, hookType: number): void;
 }
 
-// ─── Public API Types ───────────────────────────────────────────────────────
 
 export interface Options {
 	/**

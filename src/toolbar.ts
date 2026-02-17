@@ -5,7 +5,6 @@ import {
 	getReportSummary,
 } from './instrumentation';
 
-// ─── Toolbar State ──────────────────────────────────────────────────────────
 
 let rootContainer: HTMLDivElement | null = null;
 let shadowRoot: ShadowRoot | null = null;
@@ -15,11 +14,8 @@ let rendersPerSecond = 0;
 let frameCount = 0;
 let lastFpsTime = performance.now();
 let fpsRafId: number | null = null;
-
-// Track renders for FPS-like render count
 let rendersThisSecond = 0;
 
-// ─── FPS Meter ──────────────────────────────────────────────────────────────
 
 function updateFps() {
 	frameCount++;
@@ -35,7 +31,6 @@ function updateFps() {
 	fpsRafId = requestAnimationFrame(updateFps);
 }
 
-// ─── Render Counter ─────────────────────────────────────────────────────────
 
 export function notifyToolbarRender() {
 	renderCount++;
@@ -43,7 +38,6 @@ export function notifyToolbarRender() {
 	updateDisplay();
 }
 
-// ─── DOM ────────────────────────────────────────────────────────────────────
 
 const TOOLBAR_STYLES = `
 :host {
@@ -210,12 +204,10 @@ function updateDisplay() {
 	if (hotEl) hotEl.textContent = hotLabel;
 }
 
-// ─── Public API ─────────────────────────────────────────────────────────────
 
 export function createToolbar() {
 	if (rootContainer) return;
 	createToolbarDOM();
-	// Start FPS tracking
 	fpsRafId = requestAnimationFrame(updateFps);
 }
 

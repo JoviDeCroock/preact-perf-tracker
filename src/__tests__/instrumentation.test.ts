@@ -18,7 +18,6 @@ import {
 	__resetHooks,
 } from '../instrumentation';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
 
 let scratch: HTMLDivElement;
 
@@ -51,7 +50,6 @@ afterEach(() => {
 	scratch.remove();
 });
 
-// ─── hookIntoPreact / unhookFromPreact ──────────────────────────────────────
 
 describe('hookIntoPreact / unhookFromPreact', () => {
 	it('sets isInstrumented to true after hooking', () => {
@@ -128,7 +126,6 @@ describe('hookIntoPreact / unhookFromPreact', () => {
 	});
 });
 
-// ─── Render tracking ────────────────────────────────────────────────────────
 
 describe('render tracking', () => {
 	it('calls onRender for each component mount', async () => {
@@ -256,7 +253,6 @@ describe('render tracking', () => {
 	});
 });
 
-// ─── Unmount tracking ───────────────────────────────────────────────────────
 
 describe('unmount tracking', () => {
 	it('fires onRender with phase=unmount when a component is removed', async () => {
@@ -276,7 +272,6 @@ describe('unmount tracking', () => {
 	});
 });
 
-// ─── Commit callbacks ───────────────────────────────────────────────────────
 
 describe('commit lifecycle callbacks', () => {
 	it('calls onCommitStart and onCommitFinish per commit', async () => {
@@ -298,7 +293,6 @@ describe('commit lifecycle callbacks', () => {
 	});
 });
 
-// ─── Report data ────────────────────────────────────────────────────────────
 
 describe('getReport / clearReport', () => {
 	it('accumulates render counts per component type', async () => {
@@ -360,7 +354,6 @@ describe('getReport / clearReport', () => {
 	});
 });
 
-// ─── Overlay render listener ────────────────────────────────────────────────
 
 describe('overlay render listener', () => {
 	it('fires listener on component render', async () => {
@@ -401,7 +394,6 @@ describe('overlay render listener', () => {
 	});
 });
 
-// ─── Render listener fan-out ───────────────────────────────────────────────
 
 describe('render listener fan-out', () => {
 	it('notifies multiple listeners for the same render', async () => {
@@ -424,7 +416,6 @@ describe('render listener fan-out', () => {
 	});
 });
 
-// ─── Report summary ────────────────────────────────────────────────────────
 
 describe('getReportSummary', () => {
 	it('returns summary entries with limit and derived average', async () => {
@@ -445,7 +436,6 @@ describe('getReportSummary', () => {
 	});
 });
 
-// ─── Enabled toggle ─────────────────────────────────────────────────────────
 
 describe('enabled toggle', () => {
 	it('does not track renders when disabled', async () => {
@@ -484,7 +474,6 @@ describe('enabled toggle', () => {
 	});
 });
 
-// ─── Options get/set ────────────────────────────────────────────────────────
 
 describe('getActiveOptions / setActiveOptions', () => {
 	it('returns current options', () => {

@@ -8,7 +8,6 @@ import {
 } from '../utils';
 import type { InternalVNode } from '../types';
 
-// ─── Helpers to construct minimal VNode-like objects ────────────────────────
 
 function makeVNode(
 	overrides: Partial<InternalVNode> = {},
@@ -29,7 +28,6 @@ function makeVNode(
 	} as unknown as InternalVNode;
 }
 
-// ─── getDisplayName ─────────────────────────────────────────────────────────
 
 describe('getDisplayName', () => {
 	it('returns null for host element vnodes', () => {
@@ -62,7 +60,6 @@ describe('getDisplayName', () => {
 	});
 });
 
-// ─── getComponentDOMNode ────────────────────────────────────────────────────
 
 describe('getComponentDOMNode', () => {
 	it('returns __e if it is an Element', () => {
@@ -90,7 +87,6 @@ describe('getComponentDOMNode', () => {
 	});
 });
 
-// ─── shallowDiff ────────────────────────────────────────────────────────────
 
 describe('shallowDiff', () => {
 	it('returns empty array for two nulls', () => {
@@ -141,7 +137,6 @@ describe('shallowDiff', () => {
 	});
 });
 
-// ─── isComponentVNode ───────────────────────────────────────────────────────
 
 describe('isComponentVNode', () => {
 	it('returns true for function components', () => {
@@ -154,7 +149,6 @@ describe('isComponentVNode', () => {
 	});
 });
 
-// ─── snapshot ───────────────────────────────────────────────────────────────
 
 describe('snapshot', () => {
 	it('returns null for null/undefined', () => {

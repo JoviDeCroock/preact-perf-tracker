@@ -5,21 +5,19 @@ import {
 	getActiveOptions,
 } from './instrumentation';
 
-// ─── Constants ──────────────────────────────────────────────────────────────
 
 const OUTLINE_DURATION_MS = 750;
 const FADE_SPEED: Record<string, number> = {
 	fast: 1.5,
 	slow: 0.6,
-	off: 999, // instant
+	off: 999,
 };
 
-/** Render-count colour scale (purple → red as count increases) */
 function getOutlineColor(count: number): string {
-	if (count <= 1) return 'rgba(128, 90, 213, ALPHA)'; // violet
-	if (count <= 4) return 'rgba(168, 85, 247, ALPHA)'; // purple
-	if (count <= 10) return 'rgba(234, 88, 12, ALPHA)'; // orange
-	return 'rgba(239, 68, 68, ALPHA)'; // red
+	if (count <= 1) return 'rgba(128, 90, 213, ALPHA)';
+	if (count <= 4) return 'rgba(168, 85, 247, ALPHA)';
+	if (count <= 10) return 'rgba(234, 88, 12, ALPHA)';
+	return 'rgba(239, 68, 68, ALPHA)';
 }
 
 function borderWidthForTime(ms: number): number {
@@ -29,9 +27,7 @@ function borderWidthForTime(ms: number): number {
 	return 4;
 }
 
-// ─── State ──────────────────────────────────────────────────────────────────
 
-/** Active outlines keyed by element (so repeated renders on the same element merge) */
 const outlines = new Map<Element, OutlineData>();
 
 let canvas: HTMLCanvasElement | null = null;
@@ -39,7 +35,6 @@ let ctx: CanvasRenderingContext2D | null = null;
 let rafId: number | null = null;
 let isRunning = false;
 
-// ─── Canvas Setup ───────────────────────────────────────────────────────────
 
 function ensureCanvas(): CanvasRenderingContext2D {
 	if (canvas && ctx) return ctx;
@@ -72,7 +67,6 @@ function resizeCanvas() {
 	ctx?.scale(dpr, dpr);
 }
 
-// ─── Drawing ────────────────────────────────────────────────────────────────
 
 function drawFrame() {
 	if (!ctx || !canvas) return;
@@ -80,17 +74,14 @@ function drawFrame() {
 	const speed = FADE_SPEED[getActiveOptions().animationSpeed ?? 'fast'] ?? 1.5;
 	const nowMs = performance.now();
 
-	// Clear
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 
 	for (const [element, outline] of outlines) {
-		// Check if element is still in DOM
 		if (!element.isConnected) {
 			outlines.delete(element);
 			continue;
 		}
 
-		// Compute alpha decay
 		const elapsed = nowMs - outline.timestamp;
 		const progress = Math.min(elapsed / OUTLINE_DURATION_MS, 1);
 		outline.alpha = Math.max(0, 1 - progress * speed);
@@ -100,7 +91,6 @@ function drawFrame() {
 			continue;
 		}
 
-		// Get current bounding rect (element may have moved)
 		const rect = element.getBoundingClientRect();
 		if (rect.width === 0 && rect.height === 0) continue;
 		outline.rect = rect;
@@ -111,9 +101,7 @@ function drawFrame() {
 	if (outlines.size > 0) {
 		rafId = requestAnimationFrame(drawFrame);
 	} else {
-		// Nothing to draw — pause the loop
 		stopLoop();
-		// Clear the canvas
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 	}
 }
@@ -125,7 +113,6 @@ function drawOutline(outline: OutlineData) {
 	const resolvedColor = color.replace('ALPHA', String(alpha));
 	const borderWidth = borderWidthForTime(outline.selfTimeMs);
 
-	// Outline rectangle
 	ctx.strokeStyle = resolvedColor;
 	ctx.lineWidth = borderWidth;
 	ctx.strokeRect(
@@ -135,11 +122,9 @@ function drawOutline(outline: OutlineData) {
 		rect.height - borderWidth,
 	);
 
-	// Semi-transparent fill
 	ctx.fillStyle = color.replace('ALPHA', String(alpha * 0.08));
 	ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
 
-	// Label
 	if (alpha > 0.3) {
 		const renderTimeLabel =
 			outline.selfTimeMs >= 0.01 ? ` ${outline.selfTimeMs.toFixed(2)}ms` : '';
@@ -153,22 +138,18 @@ function drawOutline(outline: OutlineData) {
 		const labelHeight = fontSize + padding * 2;
 		const labelWidth = textMetrics.width + padding * 2;
 
-		// Position label above the outline
 		let labelX = rect.x;
 		let labelY = rect.y - labelHeight - 1;
 		if (labelY < 0) labelY = rect.y + rect.height + 1;
 
-		// Background
 		ctx.fillStyle = color.replace('ALPHA', String(Math.min(alpha, 0.9)));
 		ctx.fillRect(labelX, labelY, labelWidth, labelHeight);
 
-		// Text
 		ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
 		ctx.fillText(label, labelX + padding, labelY + fontSize + padding - 1);
 	}
 }
 
-// ─── Render Listener ────────────────────────────────────────────────────────
 
 function onRender(info: RenderInfo) {
 	if (info.phase === 'unmount') {
@@ -195,7 +176,6 @@ function onRender(info: RenderInfo) {
 	ensureLoop();
 }
 
-// ─── Loop control ───────────────────────────────────────────────────────────
 
 function ensureLoop() {
 	if (isRunning) return;
@@ -212,7 +192,6 @@ function stopLoop() {
 	}
 }
 
-// ─── Public API ─────────────────────────────────────────────────────────────
 
 export function startOverlay() {
 	addRenderListener(onRender);
