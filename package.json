@@ -1,0 +1,61 @@
+{
+  "name": "preact-perf-tracker",
+  "type": "module",
+  "author": "Jovi De Croock <jovi@resynapse.dev>",
+  "version": "0.1.0",
+  "description": "Track re-renders happening in Preact.",
+  "license": "MIT",
+  "homepage": "https://github.com/JoviDeCroock/preact-perf-tracker#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JoviDeCroock/preact-perf-tracker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JoviDeCroock/preact-perf-tracker/issues"
+  },
+  "keywords": [
+    "preact",
+    "perf",
+    "re-render",
+    "tracker"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "CHANGELOG.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsdown src/index.ts",
+    "test": "vitest run",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "pnpm build && changeset publish",
+    "prepublishOnly": "pnpm build"
+  },
+  "peerDependencies": {
+    "preact": "^10.0.0"
+  },
+  "devDependencies": {
+    "@changesets/changelog-github": "^0.5.2",
+    "@changesets/cli": "^2.29.8",
+    "@preact/preset-vite": "^2.10.3",
+    "@vitest/browser-playwright": "^4.0.18",
+    "preact": "^10.28.3",
+    "tsdown": "^0.20.3",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18",
+    "vitest-browser-preact": "^1.0.0"
+  }
+}

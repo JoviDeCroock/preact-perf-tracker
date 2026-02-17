@@ -1,0 +1,19 @@
+{
+  "name": "preact-perf-tracker-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "preact": "^10.28.3",
+    "preact-perf-tracker": "file:.."
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.3",
+    "typescript": "^5.9.3",
+    "vite": "^6.2.0"
+  }
+}
