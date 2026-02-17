@@ -2,7 +2,7 @@
   "name": "preact-perf-tracker",
   "type": "module",
   "author": "Jovi De Croock <jovi@resynapse.dev>",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Track re-renders happening in Preact.",
   "license": "MIT",
   "homepage": "https://github.com/JoviDeCroock/preact-perf-tracker#readme",
