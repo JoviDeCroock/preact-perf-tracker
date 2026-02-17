@@ -30,8 +30,16 @@ const defaultOptions: Options = {
 	animationSpeed: 'fast',
 };
 
-/** Saved previous-hook options so we can restore on unhook */
-let prevOptions: {
+/**
+ * Whether our permanent hook wrappers have been installed.
+ * Once installed they stay in place for the lifetime of the page;
+ * `isHooked` toggles them between active / pass-through so that
+ * libraries hooking *after* us are never clobbered on unhook.
+ */
+let hooksInstalled = false;
+
+/** Hooks captured before we first installed wrappers (for test resets). */
+let savedOriginalHooks: {
 	__b?: InternalOptions['__b'];
 	__r?: InternalOptions['__r'];
 	diffed?: InternalOptions['diffed'];
@@ -265,15 +273,26 @@ function logRender(info: RenderInfo) {
 
 /**
  * Install the Preact options hooks for render tracking.
+ *
+ * The wrappers are installed once and stay in place for the lifetime
+ * of the page.  `isHooked` toggles them between "active" (running
+ * our instrumentation) and "pass-through" (just forwarding to the
+ * previously chained hook).  This avoids the destructive restore
+ * that would clobber hooks installed by other libraries (e.g.
+ * hooks / signals) that chain after us.
  */
 export function hookIntoPreact() {
 	if (isHooked) return;
 	isHooked = true;
 
+	// Only install the permanent wrappers once.
+	if (hooksInstalled) return;
+	hooksInstalled = true;
+
 	const opts = options as InternalOptions;
 
-	// Save existing hooks so we can chain and restore
-	prevOptions = {
+	// Remember the pristine hooks so __resetHooks can fully tear down.
+	savedOriginalHooks = {
 		__b: opts.__b,
 		__r: opts.__r,
 		diffed: opts.diffed,
@@ -284,55 +303,46 @@ export function hookIntoPreact() {
 	// Chain: before-diff
 	const prev__b = opts.__b;
 	opts.__b = (vnode: InternalVNode) => {
-		onBeforeDiff(vnode);
+		if (isHooked) onBeforeDiff(vnode);
 		prev__b?.(vnode);
 	};
 
 	// Chain: before-render
 	const prev__r = opts.__r;
 	opts.__r = (vnode: InternalVNode) => {
-		onBeforeRender(vnode);
+		if (isHooked) onBeforeRender(vnode);
 		prev__r?.(vnode);
 	};
 
 	// Chain: diffed
 	const prevDiffed = opts.diffed;
 	opts.diffed = (vnode) => {
-		onDiffed(vnode as InternalVNode);
+		if (isHooked) onDiffed(vnode as InternalVNode);
 		prevDiffed?.(vnode);
 	};
 
 	// Chain: commit
 	const prev__c = opts.__c;
 	opts.__c = (vnode: InternalVNode, queue: InternalComponent[]) => {
-		onCommit(vnode, queue);
+		if (isHooked) onCommit(vnode, queue);
 		(prev__c as any)?.(vnode, queue);
 	};
 
 	// Chain: unmount
 	const prevUnmount = opts.unmount;
 	opts.unmount = (vnode) => {
-		onUnmount(vnode as InternalVNode);
+		if (isHooked) onUnmount(vnode as InternalVNode);
 		prevUnmount?.(vnode);
 	};
 }
 
 /**
- * Remove our hooks and restore previous option hooks.
+ * Disable our instrumentation hooks.  The wrappers stay in the
+ * options chain as transparent pass-throughs so that hooks installed
+ * by other libraries after us are never lost.
  */
-// TODO: this is potentially destructive if i.e. hooks/signals
-// are imported after this.
 export function unhookFromPreact() {
-	if (!isHooked || !prevOptions) return;
 	isHooked = false;
-
-	const opts = options as InternalOptions;
-	opts.__b = prevOptions.__b;
-	opts.__r = prevOptions.__r;
-	opts.diffed = prevOptions.diffed;
-	opts.__c = prevOptions.__c;
-	opts.unmount = prevOptions.unmount;
-	prevOptions = null;
 }
 
 // ─── Options & Report Access ────────────────────────────────────────────────
@@ -415,4 +425,23 @@ export function getReportSummary(limit = 10): ReportSummaryEntry[] {
 
 export function isInstrumented() {
 	return isHooked;
+}
+
+/**
+ * @internal — test-only.  Fully tears down hook wrappers so the next
+ * `hookIntoPreact()` call will re-install fresh ones.  Needed in test
+ * harnesses where every test must start from a clean slate.
+ */
+export function __resetHooks() {
+	isHooked = false;
+	hooksInstalled = false;
+	if (savedOriginalHooks) {
+		const opts = options as InternalOptions;
+		opts.__b = savedOriginalHooks.__b;
+		opts.__r = savedOriginalHooks.__r;
+		opts.diffed = savedOriginalHooks.diffed;
+		opts.__c = savedOriginalHooks.__c;
+		opts.unmount = savedOriginalHooks.unmount;
+		savedOriginalHooks = null;
+	}
 }

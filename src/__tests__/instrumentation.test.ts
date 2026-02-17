@@ -15,6 +15,7 @@ import {
 	removeRenderListener,
 	setOverlayRenderListener,
 	isInstrumented,
+	__resetHooks,
 } from '../instrumentation';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -45,6 +46,7 @@ beforeEach(() => {
 
 afterEach(() => {
 	unhookFromPreact();
+	__resetHooks();
 	render(null, scratch);
 	scratch.remove();
 });
@@ -92,8 +94,37 @@ describe('hookIntoPreact / unhookFromPreact', () => {
 		expect(spy).toHaveBeenCalled();
 
 		unhookFromPreact();
-		// After unhooking our custom hook should still be there
-		expect(opts.diffed).toBe(opts.diffed);
+		// After unhooking, hooks installed before us are still chained
+		// (our wrapper is now a pass-through, but it still calls prev).
+		// The options.diffed reference should still be a function.
+		expect(typeof opts.diffed).toBe('function');
+	});
+
+	it('does not clobber hooks installed after us (e.g. signals)', async () => {
+		hookIntoPreact();
+
+		// Simulate a third-party library that chains after us
+		const opts = options as InternalOptions;
+		const thirdPartySpy = vi.fn();
+		const ourDiffed = opts.diffed;
+		opts.diffed = (vnode) => {
+			thirdPartySpy();
+			ourDiffed?.(vnode);
+		};
+
+		function TestComp() {
+			return createElement('div', null, 'hello');
+		}
+		await act(() => render(createElement(TestComp, null), scratch));
+		expect(thirdPartySpy).toHaveBeenCalled();
+		thirdPartySpy.mockClear();
+
+		// Unhook our instrumentation
+		unhookFromPreact();
+
+		// The third-party hook should still be in place and functional
+		await act(() => render(createElement(TestComp, null), scratch));
+		expect(thirdPartySpy).toHaveBeenCalled();
 	});
 });
 
