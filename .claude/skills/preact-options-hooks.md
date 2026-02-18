@@ -16,7 +16,7 @@ options.diffed = (vnode) => {
 };
 ```
 
-To unhook, never the saved reference as other plugins might get lost, always create a bail that will
+To unhook, never restore the saved reference as other plugins might get lost, always create a bail that will
 keep the options-chain intact.
 
 ## Available hooks and their fire order
