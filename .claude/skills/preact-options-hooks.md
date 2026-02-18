@@ -16,11 +16,8 @@ options.diffed = (vnode) => {
 };
 ```
 
-To unhook, restore the saved reference:
-
-```ts
-options.diffed = prev;
-```
+To unhook, never the saved reference as other plugins might get lost, always create a bail that will
+keep the options-chain intact.
 
 ## Available hooks and their fire order
 
@@ -41,6 +38,7 @@ During a single render cycle the hooks fire in this order:
 |---|---|---|
 | `options.vnode` | `options.vnode` | Called when a VNode is created (`createElement` / JSX). Can mutate the vnode. |
 | `options.event` | `options.event` | Called before synthetic DOM events are processed. |
+| `options.debounceRendering` | `options.debounceRendering` | Called so renders can be batched, by default this is `queueMicrotask`. |
 
 ## Accessing internal VNode properties
 
@@ -54,6 +52,8 @@ Preact 10.x mangles internal properties. The key ones on a VNode:
 | parent | `__` | `VNode \| null` | Parent VNode |
 | flags | `__b` | `number` | Internal diff flags / start offset |
 | index | `__i` | `number` | Index in parent's children array |
+
+Specifically for `flags`, they have a certain bit-wise meaning, where `1<<7` means that the vnode is suspended and `1<<5` means that the node is hydrating.
 
 ## Accessing internal Component properties
 
