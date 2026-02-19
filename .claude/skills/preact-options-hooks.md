@@ -37,7 +37,7 @@ During a single render cycle the hooks fire in this order:
 | Hook | Mangled name | Purpose |
 |---|---|---|
 | `options.vnode` | `options.vnode` | Called when a VNode is created (`createElement` / JSX). Can mutate the vnode. |
-| `options.event` | `options.event` | Called before synthetic DOM events are processed. |
+| `options.event` | `options.event` | Called before DOM events are processed. |
 | `options.debounceRendering` | `options.debounceRendering` | Called so renders can be batched, by default this is `queueMicrotask`. |
 
 ## Accessing internal VNode properties
