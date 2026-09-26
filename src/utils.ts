@@ -1,4 +1,20 @@
-import type { InternalVNode } from './types';
+import type { InternalComponent, InternalVNode } from './types';
+
+/** `COMPONENT_FORCE` bit in Preact 11's `component._bits` */
+const COMPONENT_FORCE = 1 << 2;
+
+/**
+ * Whether a component is being re-rendered through `forceUpdate()` (or a
+ * context-provider update). Preact 10 stores this as `component._force`
+ * (mangled `__e`), Preact 11 moved it into the `component._bits` bitfield
+ * (mangled `__g`). Preact clears the flag before `options._render` runs,
+ * so this has to be read from `options._diff`.
+ */
+export function isForceUpdate(component: InternalComponent): boolean {
+	return typeof component.__g === 'number'
+		? (component.__g & COMPONENT_FORCE) !== 0
+		: component.__e === true;
+}
 
 export function getDisplayName(vnode: InternalVNode): string | null {
 	const type = vnode.type;

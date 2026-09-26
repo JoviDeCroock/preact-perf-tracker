@@ -94,7 +94,7 @@ pnpm dev
 ## Notes
 
 - This package hooks into Preact `options` internals.
-- Built for Preact 10.x.
+- Supports Preact 10.x and 11.x.
 - `install()` resets runtime options to defaults before applying provided options.
 - Browser/runtime tooling only (not intended for SSR execution).
 

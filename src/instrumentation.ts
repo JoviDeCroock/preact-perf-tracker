@@ -16,11 +16,13 @@ import {
 	shallowDiff,
 	isComponentVNode,
 	isFragmentLikeVNode,
+	isForceUpdate,
 	snapshot,
 	now,
 } from './utils';
 
 const renderStartTimes = new WeakMap<InternalComponent, number>();
+const forcedRenders = new WeakSet<InternalComponent>();
 const defaultOptions: Options = {
 	enabled: true,
 	log: false,
@@ -96,7 +98,7 @@ function detectChanges(
 		}
 	}
 
-	if (component.__f) {
+	if (forcedRenders.has(component)) {
 		changes.push({
 			type: ChangeType.Force,
 			name: 'forceUpdate',
@@ -120,6 +122,14 @@ function onBeforeDiff(vnode: InternalVNode) {
 		inCommit = true;
 		commitRenderQueue = [];
 		activeOptions.onCommitStart?.();
+	}
+
+	// Re-renders reuse the previous component instance, and the force flag is
+	// cleared before `options._render`/`options.diffed`, so sample it here.
+	const component = vnode.__c;
+	if (component) {
+		if (isForceUpdate(component)) forcedRenders.add(component);
+		else forcedRenders.delete(component);
 	}
 }
 
@@ -148,6 +158,7 @@ function onDiffed(vnode: InternalVNode) {
 
 	const isMounting = component.__prevProps === undefined;
 	const changes = detectChanges(component, vnode, isMounting);
+	forcedRenders.delete(component);
 	const componentName = getDisplayName(vnode) || 'Anonymous';
 	const domNode = getComponentDOMNode(vnode);
 

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { options } from 'preact';
 import { createElement, Component } from 'preact';
 import { render } from 'preact';
+import { useState } from 'preact/hooks';
 import type { InternalOptions, RenderInfo } from '../types';
 import {
 	hookIntoPreact,
@@ -241,23 +242,70 @@ describe('render tracking', () => {
 		setActiveOptions({ onRender: (info) => renders.push(info) });
 		hookIntoPreact();
 
+		let instance: Stateful | null = null;
+		// Capture the instance in componentDidMount rather than via `ref`:
+		// Preact 11 forwards `ref` to class components as a regular prop.
 		class Stateful extends Component<{}, { count: number }> {
 			state = { count: 0 };
+			componentDidMount() {
+				instance = this;
+			}
 			render() {
 				return createElement('span', null, String(this.state.count));
 			}
 		}
-		let instance: Stateful | null = null;
-		const ref = (node: Stateful | null) => {
-			instance = node;
-		};
 
-		await act(() => render(createElement(Stateful, { ref } as any), scratch));
+		await act(() => render(createElement(Stateful, null), scratch));
 		await act(() => instance!.setState({ count: 10 }));
 
 		const updateRender = renders.find((r) => r.phase === 'update');
 		expect(updateRender).toBeDefined();
 		expect(updateRender!.changes.some((c) => c.type === 2)).toBe(true);
+	});
+
+	it('detects forceUpdate()', async () => {
+		const renders: RenderInfo[] = [];
+		setActiveOptions({ onRender: (info) => renders.push(info) });
+		hookIntoPreact();
+
+		let instance: Forced | null = null;
+		class Forced extends Component {
+			componentDidMount() {
+				instance = this;
+			}
+			render() {
+				return createElement('span', null, 'forced');
+			}
+		}
+
+		await act(() => render(createElement(Forced, null), scratch));
+		await act(() => instance!.forceUpdate());
+
+		const updateRender = renders.find((r) => r.phase === 'update');
+		expect(updateRender).toBeDefined();
+		expect(updateRender!.changes).toEqual([
+			{ type: 8, name: 'forceUpdate' },
+		]);
+	});
+
+	it('does not report forceUpdate for hook state updates', async () => {
+		const renders: RenderInfo[] = [];
+		setActiveOptions({ onRender: (info) => renders.push(info) });
+		hookIntoPreact();
+
+		let setCount: (value: number) => void = () => {};
+		function HookCounter() {
+			const [count, set] = useState(0);
+			setCount = set;
+			return createElement('span', null, String(count));
+		}
+
+		await act(() => render(createElement(HookCounter, null), scratch));
+		await act(() => setCount(1));
+
+		const updateRender = renders.find((r) => r.phase === 'update');
+		expect(updateRender).toBeDefined();
+		expect(updateRender!.changes.some((c) => c.type === 8)).toBe(false);
 	});
 
 	it('reports positive selfTime for renders', async () => {

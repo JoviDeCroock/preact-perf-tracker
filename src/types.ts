@@ -9,8 +9,8 @@ export interface InternalVNode<P = Record<string, unknown>> extends VNode<P> {
 	__k: Array<InternalVNode | null> | null;
 	/** Parent VNode (`_parent`) */
 	__: InternalVNode | null;
-	/** Diff flags / start offset (`_flags`) */
-	__b: number;
+	/** Diff flags (`_flags`) */
+	__u: number;
 	/** Index in parent children array (`_index`) */
 	__i: number;
 }
@@ -20,10 +20,10 @@ export interface InternalComponent extends Component<any, any> {
 	__v: InternalVNode;
 	/** Pending / next state (`_nextState`) */
 	__s: Record<string, unknown>;
-	/** Dirty flag (`_dirty`) */
-	__d: boolean;
-	/** Force-update flag */
-	__f: boolean;
+	/** Force-update flag (`_force`, Preact 10 only) */
+	__e?: boolean;
+	/** Dirty / force-update bitfield (`_bits`, Preact 11 only) */
+	__g?: number;
 	/** Hooks state container */
 	__H: HooksState | null;
 	/** displayName – set by user or build tooling */
