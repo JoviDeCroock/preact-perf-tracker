@@ -42,7 +42,7 @@ During a single render cycle the hooks fire in this order:
 
 ## Accessing internal VNode properties
 
-Preact 10.x mangles internal properties. The key ones on a VNode:
+Preact 10.x and 11.x mangle internal properties to the same names unless noted. The key ones on a VNode:
 
 | Property | Mangled | Type | Meaning |
 |---|---|---|---|
@@ -50,7 +50,7 @@ Preact 10.x mangles internal properties. The key ones on a VNode:
 | dom | `__e` | `Element \| Text \| null` | First DOM node produced by this VNode |
 | children | `__k` | `VNode[] \| null` | Child VNodes |
 | parent | `__` | `VNode \| null` | Parent VNode |
-| flags | `__b` | `number` | Internal diff flags / start offset |
+| flags | `__u` | `number` | Internal diff flags |
 | index | `__i` | `number` | Index in parent's children array |
 
 Specifically for `flags`, they have a certain bit-wise meaning, where `1<<7` means that the vnode is suspended and `1<<5` means that the node is hydrating.
@@ -61,9 +61,12 @@ Specifically for `flags`, they have a certain bit-wise meaning, where `1<<7` mea
 |---|---|---|---|
 | vnode | `__v` | `VNode` | The VNode this component rendered |
 | nextState | `__s` | `object` | Pending state (before commit) |
-| dirty | `__d` | `boolean` | Whether component is queued for re-render |
-| force | `__f` | `boolean` | Whether `forceUpdate()` was called |
+| dirty | `__d` | `boolean` | Preact 10 only: whether component is queued for re-render |
+| force | `__e` | `boolean` | Preact 10 only: whether `forceUpdate()` was called |
+| bits | `__g` | `number` | Preact 11 only: replaces dirty/force. `1<<3` is dirty, `1<<2` is force |
 | hooks | `__H` | `{ __: HookState[], __h: HookState[] } \| null` | Hooks state container. `__` is the ordered list; `__h` is pending effects. |
+
+The force flag is cleared before `options.__r` runs, so read it in `options.__b` (where `vnode.__c` is already set for re-renders). `__f` is `_hasScuFromHooks` (set by `preact/hooks`), not the force flag.
 
 Each `HookState` has `__` (the current value) and `__H` (deps array, if applicable).
 
@@ -125,6 +128,6 @@ options.diffed = (vnode) => {
 
 - These hooks are **synchronous** — they run inline during diffing. Keep them fast.
 - `options.__b` fires for *all* VNodes (host elements too), not just components. Filter with `typeof vnode.type === 'function'` when you only care about components.
-- The mangled names (`__b`, `__r`, `__c`, `__h`, `__e`, etc.) are stable across Preact 10.x and are the canonical way to access internals — Preact's own addons (`preact/debug`, `preact/devtools`) use them.
+- The mangled names (`__b`, `__r`, `__c`, `__h`, `__e`, etc.) are stable across Preact 10.x (and mostly unchanged in 11.x, see the component table) and are the canonical way to access internals — Preact's own addons (`preact/debug`, `preact/devtools`) use them.
 - `options.diffed` fires bottom-up (children before parents). `options.__b` fires top-down.
 - Always chain (save + call previous hook) to avoid breaking other addons.
